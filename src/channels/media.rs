@@ -1225,6 +1225,21 @@ where
                     if status.request_id == request_id {
                         return Ok(Some(status));
                     }
+
+                    // [WORKAROUND] Some receivers (e.g. a Google Nest display) answer
+                    // QUEUE_LOAD with request id 0, so also accept the status that
+                    // shows the queue's first item loaded.
+                    let first = queue.items.first().map(|item| &item.media.content_id);
+                    let has_media = status.entries.iter().any(|entry| {
+                        entry
+                            .media
+                            .as_ref()
+                            .is_some_and(|loaded| Some(&loaded.content_id) == first)
+                    });
+
+                    if has_media {
+                        return Ok(Some(status));
+                    }
                 }
                 MediaResponse::LoadFailed(error) => {
                     if error.request_id == request_id {
