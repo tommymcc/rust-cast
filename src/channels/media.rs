@@ -574,9 +574,22 @@ impl TryFrom<&proxies::media::Media> for Media {
 pub struct QueueItem {
     /// The item as media
     pub media: Media,
+    /// Seconds since the beginning of the content to start playing the item at.
+    pub start_time: f64,
+    /// Seconds of the content to play, from `start_time`. `None` plays to the end.
+    pub playback_duration: Option<f64>,
 }
 
 impl QueueItem {
+    /// An item that plays all of `media`.
+    pub fn new(media: Media) -> QueueItem {
+        QueueItem {
+            media,
+            start_time: 0.,
+            playback_duration: None,
+        }
+    }
+
     fn encode(&self) -> proxies::media::QueueItem {
         proxies::media::QueueItem {
             active_track_ids: None,
@@ -584,9 +597,9 @@ impl QueueItem {
             custom_data: None,
             item_id: None,
             media: self.media.encode(),
-            playback_duration: None,
+            playback_duration: self.playback_duration,
             preload_time: 20.,
-            start_time: 0.,
+            start_time: self.start_time,
         }
     }
 }
@@ -1546,6 +1559,29 @@ mod tests {
     use protobuf::EnumOrUnknown;
 
     use super::*;
+
+    #[test]
+    fn test_queue_item_encodes_its_timing() {
+        let media = Media {
+            content_id: "http://host/book.m4b".to_string(),
+            stream_type: StreamType::Buffered,
+            content_type: "audio/mp4".to_string(),
+            metadata: None,
+            duration: None,
+        };
+        let whole = serde_json::to_value(QueueItem::new(media.clone()).encode()).unwrap();
+        assert_eq!(whole["startTime"], 0.0);
+        assert!(whole.get("playbackDuration").is_none());
+
+        let chapter = QueueItem {
+            start_time: 5.5,
+            playback_duration: Some(660.25),
+            ..QueueItem::new(media)
+        };
+        let chapter = serde_json::to_value(chapter.encode()).unwrap();
+        assert_eq!(chapter["startTime"], 5.5);
+        assert_eq!(chapter["playbackDuration"], 660.25);
+    }
 
     #[test]
     fn test_get_status() {

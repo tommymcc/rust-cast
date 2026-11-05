@@ -85,6 +85,7 @@ pub mod media {
         pub media: Media,
 
         #[serde(rename = "playbackDuration")]
+        #[serde(skip_serializing_if = "Option::is_none")]
         pub playback_duration: Option<f64>,
 
         #[serde(rename = "preloadTime")]
